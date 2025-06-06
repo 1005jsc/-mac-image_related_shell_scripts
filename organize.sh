@@ -1,51 +1,43 @@
 #!/bin/bash
 
-
-# 입력 방법
-
-# 예) ./organize.sh /Users/jaesincho/Desktop/my_images
-# 인자: 정리할 대상 폴더
-
-# 인자로 받은 정리 대상 폴더 (없으면 현재 디렉토리)
+# 사용법 명령어
+# 1. 권한 풀기
+#    입력: chmod +x organize.sh
+# 2. 실행하기
+#    입력: ./organize.sh
 
 
-TARGET_DIR=${1:-.}
+INPUT_DIR="$(pwd)"
 
-# 1MB = 1048576 bytes
-ONE_MB=1048576
+echo "📂 현재 디렉토리: $INPUT_DIR"
+echo "🛠️  이미지 파일을 용량별로 분류합니다..."
 
-# PNG 파일 순회
-find "$TARGET_DIR" -maxdepth 1 -type f -iname '*.png' | while read -r file; do
-  # macOS에서는 stat -f %z 사용
+# find로 jpg/jpeg/png 찾기
+find "$INPUT_DIR" -maxdepth 1 \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read -r file; do
+  [ -f "$file" ] || continue
+
+  filename=$(basename "$file")
   size_bytes=$(stat -f %z "$file")
+  size_mb=$(echo "scale=1; $size_bytes / 1048576" | bc)
 
-  # MB로 변환 (소수점 올림)
-  size_mb=$(echo "scale=2; $size_bytes / $ONE_MB" | bc)
-  size_mb_ceil=$(echo "($size_mb + 0.999)/1" | bc)
-
-  # 1MB 이하이면 특별 폴더 이름
-  is_less_than_1=$(echo "$size_mb < 1" | bc)
-  if [ "$is_less_than_1" -eq 1 ]; then
+  # 1MB 미만
+  if (( $(echo "$size_mb < 1" | bc -l) )); then
     folder_name="1mb이하"
+  elif (( $(echo "$size_mb < 10" | bc -l) )); then
+    folder_int=$(printf "%.0f" "$size_mb")
+    folder_name="${folder_int}mb"
   else
-    folder_name="${size_mb_ceil}mb"
+    # 10MB 이상 → 5MB 구간 분류
+    lower=$(( ($(echo "$size_mb / 5" | bc) * 5) ))
+    upper=$((lower + 5))
+    folder_name="${lower}~${upper}mb"
   fi
 
-  # 폴더 없으면 생성
-  mkdir -p "$TARGET_DIR/$folder_name"
+  dest_folder="$INPUT_DIR/$folder_name"
+  mkdir -p "$dest_folder"
 
-  # 중복 파일 처리
-  base_name=$(basename "$file")
-  dest_file="$TARGET_DIR/$folder_name/$base_name"
-  count=1
-  while [ -e "$dest_file" ]; do
-    filename="${base_name%.*}"
-    extension="${base_name##*.}"
-    dest_file="$TARGET_DIR/$folder_name/${filename}_$count.$extension"
-    ((count++))
-  done
-
-  # 파일 이동
-  mv "$file" "$dest_file"
-  echo "Moved: $file -> $dest_file"
+  echo "📦 이동: $filename → [$folder_name]"
+  mv "$file" "$dest_folder/"
 done
+
+echo "🎉 분류 완료! 폴더별로 이미지가 정리되었습니다."

@@ -14,4 +14,6 @@
     # 저장할 파일 이름
     # 예) ./pdf_to_png.sh png 300 GD_png
 
-## 3. organize.sh(이거 다시 만들 필요 있음)
+## 3. organize.sh
+
+    shell_script폴더에 다양한 사이즈들의 이미지들 다 떄려 박고 ./organize.sh하면 용량별로 이미지 파일 싹 다 정리됨
